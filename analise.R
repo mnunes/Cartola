@@ -3,14 +3,14 @@ theme_set(theme_bw())
 
 # leitura dos dados
 
-scouts_2014 <- as_data_frame(read.csv(file="2014_scouts.csv"))
+scouts_2014 <- as_data_frame(read.csv(file="dados/2014_scouts.csv"))
 
 dim(scouts_2014)
 
 # leitura dos atletas e clubes
 
-atletas_2014 <- read.csv(file="2014_atletas.csv")
-clubes_2014  <- read.csv(file="2014_clubes.csv")
+atletas_2014 <- read.csv(file="dados/2014_atletas.csv")
+clubes_2014  <- read.csv(file="dados/2014_clubes.csv")
 
 # colocar informacoes sobre atletas e clubes nos scouts
 
