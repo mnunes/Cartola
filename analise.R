@@ -1,5 +1,7 @@
 library(tidyverse)
 theme_set(theme_bw())
+library(broom)
+library(GGally)
 
 # leitura dos dados
 
@@ -80,6 +82,17 @@ tidy(scouts_2014_regressao, regressao) %>%
   filter(p.value < 0.05/245) %>%
   arrange(estimate)
 
+# pontos_num, preco_num, nota estao correlacionados?
+
+scouts_2014 %>%
+  select(pontos_num, preco_num, nota) %>%
+  ggcorr(.)
+
+# clustering
+
+names(scouts_2014)
+
+head(scouts_2014)
 
 
 
