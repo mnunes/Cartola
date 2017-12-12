@@ -1,45 +1,101 @@
+#####################
+# pacotes necessarios
+
 library(tidyverse)
 theme_set(theme_bw())
 library(broom)
 library(GGally)
 library(caret)
 
+
+
+###################
 # leitura dos dados
 
-scouts_2014 <- as_data_frame(read.csv(file="dados/2014_scouts.csv"))
+scouts <- as_data_frame(read.csv(file="dados/2014_scouts.csv"))
 
-dim(scouts_2014)
+dim(scouts)
 
 # leitura dos atletas e clubes
 
-atletas_2014 <- read.csv(file="dados/2014_atletas.csv")
-clubes_2014  <- read.csv(file="dados/2014_clubes.csv")
+atletas <- read.csv(file="dados/2014_atletas.csv")
+clubes  <- read.csv(file="dados/2014_clubes.csv")
 
 # colocar informacoes sobre atletas e clubes nos scouts
 
-scouts_2014 <- left_join(scouts_2014, atletas_2014, by=c("atleta_id"="id"))
-scouts_2014 <- left_join(scouts_2014, clubes_2014, by=c("clube_id.x"="id"))
+scouts <- left_join(scouts, atletas, by=c("atleta_id"="id"))
+scouts <- left_join(scouts, clubes, by=c("clube_id.x"="id"))
 
 # limpeza dos dados
 
-names(scouts_2014)
-scouts_2014 <- scouts_2014 %>%
-  select(-clube_id.y, -posicao_id.y) %>%
+names(scouts)
+scouts <- scouts %>%
+  select(-clube_id.y, -posicao_id.y, -nome) %>%
   filter(rodada > 0) %>%
   na.omit()
 
-summary(scouts_2014)
+summary(scouts)
+
+
+
+####################
+# analise descritiva
+
+# gols por jogador
+
+scouts %>%
+  group_by(apelido, slug) %>%
+  summarise(Gols=sum(G)) %>%
+  arrange(desc(Gols)) %>%
+  filter(Gols >= 10)
+
+scouts %>%
+  group_by(apelido, slug) %>%
+  summarise(Gols=sum(G)) %>%
+  arrange(desc(Gols)) %>%
+  filter(Gols >= 10) %>%
+  ungroup() %>%
+  mutate(apelido=factor(apelido, levels=unique(apelido))) %>%
+  arrange(apelido) %>%
+  ggplot(., aes(x=apelido, y=Gols, fill=toupper(slug))) +
+  geom_col() +
+  labs(x="Jogador", y="Gols", fill="Clube") +
+  scale_fill_brewer(palette = "Dark2") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+# assistencias por jogador
+
+scouts %>%
+  group_by(apelido, slug) %>%
+  summarise(Assistencias=sum(A)) %>%
+  arrange(desc(Assistencias)) %>%
+  filter(Assistencias >= 8)
+
+scouts %>%
+  group_by(apelido, slug) %>%
+  summarise(Assistencias=sum(A)) %>%
+  arrange(desc(Assistencias)) %>%
+  filter(Assistencias >= 8) %>%
+  ungroup() %>%
+  mutate(apelido=factor(apelido, levels=unique(apelido))) %>%
+  arrange(apelido) %>%
+  ggplot(., aes(x=apelido, y=Assistencias, fill=toupper(slug))) +
+  geom_col() +
+  labs(x="Jogador", y="Assistencias", fill="Clube") +
+  scale_fill_brewer(palette = "Dark2") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  
 
 # jogadores com maior média
 
-scouts_2014 %>%
+scouts %>%
   group_by(apelido, nome, posicao_id.x) %>%
   summarise(Media=mean(nota, na.rm=TRUE)) %>%
   arrange(desc(Media))
 
 # filtro: jogadores com pelo menos k jogos
 
-scouts_2014 %>%
+scouts %>%
   group_by(apelido, nome, posicao_id.x) %>%
   filter(n() >= 27) %>%
   summarise(Media=mean(nota, na.rm=TRUE)) %>%
@@ -51,14 +107,14 @@ scouts_2014 %>%
 source("melhor.jogador.posicao.R")
 source("melhor.time.R")
 
-melhor.time(scouts_2014)
+melhor.time(scouts)
 
 # grafico do desempenho dos jogadores do melhor time 
 # durante o torneio
 
-time.do.campeonato <- melhor.time(scouts_2014)
+time.do.campeonato <- melhor.time(scouts)
 
-time.do.campeonato.rodadas <- scouts_2014 %>% 
+time.do.campeonato.rodadas <- scouts %>% 
   filter(apelido %in% time.do.campeonato$apelido)
 
 ggplot(time.do.campeonato.rodadas, aes(x=rodada, y=preco_num, group=apelido)) +
@@ -68,17 +124,17 @@ ggplot(time.do.campeonato.rodadas, aes(x=rodada, y=preco_num, group=apelido)) +
 
 # jogadores valorizados
 
-scouts_2014_regressao <- scouts_2014 %>%
+scouts_regressao <- scouts %>%
   group_by(apelido, nome, posicao_id.x) %>%
   filter(n() >= 19) %>%
   do(regressao = lm(preco_num ~ rodada, data=.))
   
-tidy(scouts_2014_regressao, regressao) %>%
+tidy(scouts_regressao, regressao) %>%
   filter(term=="rodada") %>%
   filter(p.value < 0.05/245) %>%
   arrange(desc(estimate))
   
-tidy(scouts_2014_regressao, regressao) %>%
+tidy(scouts_regressao, regressao) %>%
   filter(term=="rodada") %>%
   filter(p.value < 0.05/245) %>%
   arrange(estimate)
@@ -88,38 +144,44 @@ tidy(scouts_2014_regressao, regressao) %>%
 # clustering #
 ##############
 
-names(scouts_2014)
+names(scouts)
 
-scouts_2014_clustering <- scouts_2014 %>%
+scouts_clustering <- scouts %>%
   #select(FS, PE, A, FT, FD, FF, G, I, PP, RB, FC, GC, CA, CV, SG, DD, DP, GS)
   select(FS, PE, A, FT, FD, FF, G, I, PP, RB, FC, GC, CA, CV)
 
 # pre processamento
 
-medias <- sapply(scouts_2014_clustering, mean)
-sds    <- sapply(scouts_2014_clustering, sd)
+medias <- sapply(scouts_clustering, mean)
+sds    <- sapply(scouts_clustering, sd)
 
-scouts_2014_clustering_preprocess <- t((t(scouts_2014_clustering) - medias)/sds)
+scouts_clustering_preprocess <- t((t(scouts_clustering) - medias)/sds)
 
-mean(scouts_2014_clustering_preprocess[, 1])
-var(scouts_2014_clustering_preprocess[, 1])
+mean(scouts_clustering_preprocess[, 1])
+var(scouts_clustering_preprocess[, 1])
 
 # 
 
 # pca 
 
-scouts_2014_clustering_pca <- prcomp(scouts_2014_clustering, center=TRUE, scale.=TRUE)
+scouts_clustering_pca <- prcomp(scouts_clustering, center=TRUE, scale.=TRUE)
 
-summary(scouts_2014_clustering_pca)
+summary(scouts_clustering_pca)
 
-scouts_2014_clustering_pca <- as_data_frame(scouts_2014_clustering_pca$x)
+scouts_clustering_pca <- as_data_frame(scouts_clustering_pca$x)
 
-ggplot(scouts_2014_clustering_pca, aes(x=PC1, y=PC2)) +
+ggplot(scouts_clustering_pca, aes(x=PC1, y=PC2)) +
   geom_point()
 
-scouts_2014_clustering_kmeans <- kmeans(scouts_2014_clustering_pca, 5)
+scouts_clustering_kmeans <- kmeans(scouts_clustering_pca, 5)
 
-ggplot(scouts_2014_clustering_pca, aes(x=PC1, y=PC2)) +
-  geom_point(aes(colour=as.factor(scouts_2014_clustering_kmeans$cluster))) +
+ggplot(scouts_clustering_pca, aes(x=PC1, y=PC2)) +
+  geom_point(aes(colour=as.factor(scouts_clustering_kmeans$cluster))) +
   labs(x="PC1", y="PC2", colour="Cluster")
+
+# clustering hierarquico 
+
+dist(scouts_clustering)
+
+
 
