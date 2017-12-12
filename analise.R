@@ -2,6 +2,7 @@ library(tidyverse)
 theme_set(theme_bw())
 library(broom)
 library(GGally)
+library(caret)
 
 # leitura dos dados
 
@@ -82,17 +83,43 @@ tidy(scouts_2014_regressao, regressao) %>%
   filter(p.value < 0.05/245) %>%
   arrange(estimate)
 
-# pontos_num, preco_num, nota estao correlacionados?
 
-scouts_2014 %>%
-  select(pontos_num, preco_num, nota) %>%
-  ggcorr(.)
-
-# clustering
+##############
+# clustering #
+##############
 
 names(scouts_2014)
 
-head(scouts_2014)
+scouts_2014_clustering <- scouts_2014 %>%
+  #select(FS, PE, A, FT, FD, FF, G, I, PP, RB, FC, GC, CA, CV, SG, DD, DP, GS)
+  select(FS, PE, A, FT, FD, FF, G, I, PP, RB, FC, GC, CA, CV)
 
+# pre processamento
 
+medias <- sapply(scouts_2014_clustering, mean)
+sds    <- sapply(scouts_2014_clustering, sd)
+
+scouts_2014_clustering_preprocess <- t((t(scouts_2014_clustering) - medias)/sds)
+
+mean(scouts_2014_clustering_preprocess[, 1])
+var(scouts_2014_clustering_preprocess[, 1])
+
+# 
+
+# pca 
+
+scouts_2014_clustering_pca <- prcomp(scouts_2014_clustering, center=TRUE, scale.=TRUE)
+
+summary(scouts_2014_clustering_pca)
+
+scouts_2014_clustering_pca <- as_data_frame(scouts_2014_clustering_pca$x)
+
+ggplot(scouts_2014_clustering_pca, aes(x=PC1, y=PC2)) +
+  geom_point()
+
+scouts_2014_clustering_kmeans <- kmeans(scouts_2014_clustering_pca, 5)
+
+ggplot(scouts_2014_clustering_pca, aes(x=PC1, y=PC2)) +
+  geom_point(aes(colour=as.factor(scouts_2014_clustering_kmeans$cluster))) +
+  labs(x="PC1", y="PC2", colour="Cluster")
 
