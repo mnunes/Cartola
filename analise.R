@@ -6,6 +6,7 @@ theme_set(theme_bw())
 library(broom)
 library(GGally)
 library(caret)
+library(biotools)
 
 
 
@@ -181,7 +182,8 @@ ggplot(scouts_clustering_pca, aes(x=PC1, y=PC2)) +
 
 # clustering hierarquico 
 
-dist(scouts_clustering)
+D2.(scouts_clustering)
+
 
 
 
